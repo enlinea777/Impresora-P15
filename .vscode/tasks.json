@@ -1,0 +1,28 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Instalar dependencias",
+      "type": "shell",
+      "command": "${workspaceFolder}/venv/bin/pip install -r ${workspaceFolder}/requirements.txt",
+      "group": "build",
+      "presentation": { "reveal": "always", "panel": "shared" }
+    },
+    {
+      "label": "Ejecutar servidor Flask",
+      "type": "shell",
+      "command": "${workspaceFolder}/venv/bin/python ${workspaceFolder}/app.py",
+      "group": { "kind": "build", "isDefault": true },
+      "isBackground": true,
+      "presentation": { "reveal": "always", "panel": "dedicated" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Empaquetar con PyInstaller (Linux/Mac)",
+      "type": "shell",
+      "command": "${workspaceFolder}/venv/bin/python ${workspaceFolder}/build_app.py",
+      "group": "build",
+      "presentation": { "reveal": "always", "panel": "shared" }
+    }
+  ]
+}

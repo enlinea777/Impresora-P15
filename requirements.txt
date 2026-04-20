@@ -1,0 +1,9 @@
+# Dependencias del proyecto Impresora P15
+# Instalar con: pip install -r requirements.txt
+
+Flask>=3.1
+Werkzeug>=3.1
+Pillow>=10.0
+pystray>=0.19
+pygatt>=5.0
+python-xlib>=0.33   # requerido por pystray en Linux

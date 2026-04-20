@@ -1,0 +1,28 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "▶ Depurar P15 Designer",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/app.py",
+      "python": "${workspaceFolder}/venv/bin/python",
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "env": {
+        "FLASK_DEBUG": "1",
+        "FLASK_ENV": "development"
+      },
+      "args": []
+    },
+    {
+      "name": "▶ Depurar printer.py (diagnóstico BLE)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/printer.py",
+      "python": "${workspaceFolder}/venv/bin/python",
+      "console": "integratedTerminal",
+      "justMyCode": false
+    }
+  ]
+}
