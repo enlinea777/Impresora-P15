@@ -197,6 +197,12 @@ def compile_noble_win_arm64(thermoprint: Path) -> None:
     env = os.environ.copy()
     env["npm_config_arch"] = "arm64"
     env["npm_config_target_arch"] = "arm64"
+    # VS2026 marca /await y <experimental/coroutine> como obsoletos y emite
+    # error; el macro oficial lo convierte en warning (noble aún usa /await).
+    cl = env.get("CL", "")
+    cl += " /D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS"
+    cl += " /D_SILENCE_ALL_CXX20_DEPRECATION_WARNINGS"
+    env["CL"] = cl.strip()
     cmd = f'"{npx}" --yes node-gyp rebuild --arch=arm64'
     try:
         subprocess.run(cmd, cwd=noble, env=env, check=True, shell=True)
