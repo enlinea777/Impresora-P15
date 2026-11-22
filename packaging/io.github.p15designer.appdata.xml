@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.p15designer</id>
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+  <name>P15 Designer</name>
+  <summary>Diseña e imprime etiquetas para impresoras Marklife P15</summary>
+  <description>
+    <p>
+      Editor visual de etiquetas de 40×12 mm con impresión directa por Bluetooth
+      en impresoras térmicas Marklife P15 y compatibles con el protocolo L11.
+    </p>
+    <p>
+      Permite añadir texto, imágenes, códigos de barras y códigos QR, previsualizar
+      el resultado tal como lo imprimirá el cabezal y guardar diseños localmente.
+    </p>
+  </description>
+  <launchable type="desktop-id">p15-designer.desktop</launchable>
+  <categories>
+    <category>Graphics</category>
+    <category>Office</category>
+    <category>Utility</category>
+  </categories>
+  <keywords>
+    <keyword>etiquetas</keyword>
+    <keyword>labels</keyword>
+    <keyword>printer</keyword>
+    <keyword>impresora</keyword>
+    <keyword>bluetooth</keyword>
+    <keyword>marklife</keyword>
+    <keyword>p15</keyword>
+  </keywords>
+  <url type="homepage">https://github.com/tomLadder/thermoprint</url>
+  <content_rating type="oars-1.1"/>
+</component>

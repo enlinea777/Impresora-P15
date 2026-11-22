@@ -31,38 +31,162 @@ log = logging.getLogger(__name__)
 _OS = platform.system()   # 'Linux', 'Darwin', 'Windows'
 
 # ── Rutas ──────────────────────────────────────────────────────────────────
-_BASE_DIR        = Path(__file__).parent
-_THERMOPRINT_REF = _BASE_DIR / "thermoprint_ref"
+_APP_DIR         = Path(os.environ.get("P15_APP_DIR") or Path(__file__).resolve().parent)
+_THERMOPRINT_REF = Path(os.environ.get("P15_THERMOPRINT_DIR") or _APP_DIR / "thermoprint_ref")
 _BLE_SERVER_TS   = _THERMOPRINT_REF / "packages" / "cli" / "src" / "ble_server.ts"
 _THERMOPRINT_CLI = _THERMOPRINT_REF / "packages" / "cli" / "src" / "index.ts"
 
-BLE_SERVER_PORT  = 7315
+# Directorio de datos del usuario (escribible). En el AppImage el resto es
+# de solo lectura, así que aquí van logs, ajustes y la copia de bun con permisos.
+def _default_data_dir() -> Path:
+    if env := os.environ.get("P15_DATA_DIR"):
+        return Path(env)
+    if _OS == "Windows":
+        base = os.environ.get("APPDATA") or str(Path.home() / "AppData/Roaming")
+        return Path(base) / "P15-Designer"
+    if _OS == "Darwin":
+        return Path.home() / "Library/Application Support/P15-Designer"
+    return Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local/share") / "p15-designer"
+
+DATA_DIR  = _default_data_dir()
+_LOCAL_BUN = DATA_DIR / "bin" / "bun"
+_BUNDLED_BUN = _THERMOPRINT_REF / "bun"   # incluido en el AppImage
+
+BLE_SERVER_PORT  = int(os.environ.get("P15_BLE_PORT", "7315"))
 BLE_SERVER_URL   = f"http://localhost:{BLE_SERVER_PORT}"
 
 # ── Buscar bun ─────────────────────────────────────────────────────────────
-def _find_bun() -> str:
-    if env := os.environ.get("BUN_BIN"):
-        return env
+def _bun_candidates() -> list[Path]:
+    """Rutas de bun por orden de prioridad (la copia local puede tener caps)."""
+    candidates: list[Path] = []
+    for value in (os.environ.get("P15_BUN"), os.environ.get("BUN_BIN")):
+        if value:
+            candidates.append(Path(value))
+    candidates.append(_LOCAL_BUN)
+    candidates.append(_BUNDLED_BUN)
+
     if found := shutil.which("bun"):
-        return found
-    candidates = []
+        candidates.append(Path(found))
+
     if _OS == "Windows":
         appdata = os.environ.get("APPDATA", "")
         localappdata = os.environ.get("LOCALAPPDATA", "")
-        candidates = [
+        candidates += [
             Path(appdata) / "bun" / "bin" / "bun.exe",
             Path(localappdata) / "bun" / "bin" / "bun.exe",
         ]
     elif _OS == "Darwin":
-        candidates = [Path.home() / ".bun/bin/bun", Path("/usr/local/bin/bun"), Path("/opt/homebrew/bin/bun")]
+        candidates += [Path.home() / ".bun/bin/bun", Path("/usr/local/bin/bun"), Path("/opt/homebrew/bin/bun")]
     else:
-        candidates = [Path.home() / ".bun/bin/bun", Path("/usr/local/bin/bun")]
-    for c in candidates:
+        candidates += [Path.home() / ".bun/bin/bun", Path("/usr/local/bin/bun")]
+    return candidates
+
+
+def _find_bun() -> str:
+    for c in _bun_candidates():
         if c.exists():
             return str(c)
     return "bun"
 
+
 _BUN = _find_bun()
+
+
+# ── Permisos Bluetooth (Linux) ────────────────────────────────────────────
+def _caps_ok(path: str) -> bool:
+    """True si el binario puede abrir sockets HCI (root o con cap_net_raw)."""
+    if _OS != "Linux":
+        return True
+    if os.geteuid() == 0:
+        return True
+    try:
+        out = subprocess.run(
+            ["getcap", str(path)],
+            capture_output=True, text=True, timeout=5,
+        ).stdout
+    except (OSError, subprocess.SubprocessError):
+        return True  # no se puede comprobar → no bloquear
+    return "cap_net_raw" in out
+
+
+def ble_permissions_ok() -> bool:
+    """Indica si el bun activo tiene permisos para usar Bluetooth."""
+    return _caps_ok(_BUN)
+
+
+def _switch_bun(path: str) -> None:
+    """Cambia el binario de bun y reinicia el servidor BLE en segundo plano."""
+    global _BUN
+    log.info("Usando bun: %s", path)
+    _BUN = str(path)
+    threading.Thread(target=_restart_ble_server, daemon=True, name="ble-restart").start()
+
+
+def _restart_ble_server() -> None:
+    _stop_ble_server()
+    globals()["_shuttingDown"] = False
+    _start_ble_server()
+
+
+def setup_ble_permissions() -> dict:
+    """
+    Copia bun a un directorio escribible y le aplica cap_net_raw/cap_net_admin.
+
+    En el AppImage el binario vive en una imagen de solo lectura y no puede
+    conservar file capabilities, por eso se copia a ~/.local/share.
+    """
+    if _OS != "Linux":
+        return {"ok": True, "message": "No hace falta configurar permisos en este sistema."}
+
+    src = Path(_BUNDLED_BUN)
+    if not src.exists():
+        src = Path(_BUN)
+    if not src.exists():
+        return {"ok": False, "error": "No se encontró el binario de bun."}
+
+    dst = _LOCAL_BUN
+    try:
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        if not dst.exists() or dst.stat().st_size != src.stat().st_size:
+            log.info("Copiando bun a %s…", dst)
+            shutil.copy2(src, dst)
+        dst.chmod(0o755)
+    except Exception as e:
+        return {"ok": False, "error": f"No se pudo copiar bun: {e}"}
+
+    setcap_args = ["setcap", "cap_net_raw,cap_net_admin+eip", str(dst)]
+    attempts: list[list[str]] = []
+    if shutil.which("pkexec"):
+        attempts.append(["pkexec", *setcap_args])      # diálogo gráfico
+    if shutil.which("sudo"):
+        attempts.append(["sudo", "-n", *setcap_args])  # sin preguntar
+    if os.geteuid() == 0:
+        attempts.insert(0, setcap_args)
+
+    errors = []
+    for cmd in attempts:
+        try:
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        except Exception as e:
+            errors.append(f"{cmd[0]}: {e}")
+            continue
+        if proc.returncode == 0 and _caps_ok(str(dst)):
+            _switch_bun(str(dst))
+            return {
+                "ok": True,
+                "message": "Permisos Bluetooth configurados. Reconectando…",
+                "bun": str(dst),
+            }
+        errors.append((proc.stderr or proc.stdout or f"{cmd[0]}: código {proc.returncode}").strip())
+
+    manual = f"sudo setcap cap_net_raw,cap_net_admin+eip {dst}"
+    log.warning("No se pudieron aplicar permisos BLE: %s", "; ".join(errors))
+    return {
+        "ok": False,
+        "error": "No se pudieron aplicar los permisos automáticamente.",
+        "manual": manual,
+        "details": errors,
+    }
 
 # ── Constantes ─────────────────────────────────────────────────────────────
 HEAD_W_PX          = 384   # ancho físico del cabezal (referencia, no se usa para padding)
@@ -81,6 +205,19 @@ def _start_ble_server() -> None:
     with _ble_lock:
         if _ble_proc is not None and _ble_proc.poll() is None:
             return  # ya está corriendo
+
+        if not Path(_BUN).exists():
+            log.error("No se encontró bun (%s). El Bluetooth no estará disponible.", _BUN)
+            return
+        if not _BLE_SERVER_TS.exists():
+            log.error("No se encontró %s. El Bluetooth no estará disponible.", _BLE_SERVER_TS)
+            return
+        if _OS == "Linux" and not _caps_ok(_BUN):
+            log.warning(
+                "bun no tiene permisos Bluetooth (cap_net_raw). "
+                "Usa «Permitir Bluetooth» en la interfaz o ejecuta el AppImage con "
+                "--setup-bluetooth."
+            )
 
         log.info("Iniciando servidor BLE (ble_server.ts)…")
         env = os.environ.copy()
@@ -334,6 +471,7 @@ def print_text_label(
 def get_status_simple() -> dict:
     """Estado de la impresora vía servidor BLE persistente."""
     result = _ble_get("/status", timeout=10)
+    perms_ok = ble_permissions_ok()
     if result.get("connected"):
         return {
             "connected": True,
@@ -342,8 +480,22 @@ def get_status_simple() -> dict:
             "rssi":     result.get("rssi"),
             "status":   result.get("status", "ready"),
             "battery":  result.get("battery"),
+            "ble_permissions_ok": perms_ok,
         }
-    return {"connected": False, "error": result.get("error", "Sin conexión")}
+
+    status = {
+        "connected": False,
+        "error": result.get("error", "Sin conexión"),
+        "ble_permissions_ok": perms_ok,
+        "setup_available": Path(_BUNDLED_BUN).exists() or Path(_BUN).exists(),
+    }
+    if not perms_ok:
+        status["error"] = (
+            "Bluetooth sin permisos. Pulsa «Permitir Bluetooth» o ejecuta "
+            "el AppImage con --setup-bluetooth."
+        )
+        status["error_code"] = "ble_permissions"
+    return status
 
 
 def discover_printers(timeout_ms: int = 5000) -> list[dict]:

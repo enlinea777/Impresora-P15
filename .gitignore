@@ -1,0 +1,30 @@
+# ── Python ──────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+/venv/
+/.venv/
+venv/
+.venv/
+
+# ── Dependencias Node (se instalan al compilar) ────────────────────────────
+thermoprint_ref/node_modules/
+thermoprint_ref/**/node_modules/
+thermoprint_ref/.bun/
+
+# ── Artefactos de compilación ──────────────────────────────────────────────
+build/
+dist/
+.build-cache/
+AppDir/
+*.AppImage
+*.AppImage.zsync
+
+# ── Datos de ejecución ─────────────────────────────────────────────────────
+uploads/*
+!uploads/.gitkeep
+*.log
+
+# ── Sistema / editores ─────────────────────────────────────────────────────
+.DS_Store
+*.swp

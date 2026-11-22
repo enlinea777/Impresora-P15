@@ -187,6 +187,7 @@ input[type=color]{width:100%;height:27px;padding:1px;background:#0f172a;border:1
     <div id="status-dot"></div>
     <span id="status-label">Desconectada</span>
   </div>
+  <button class="btn-hdr" id="btn-ble-perm" onclick="setupBlePermissions()" title="Conceder permiso de Bluetooth a la aplicación (solo la primera vez)" style="display:none;background:#78350f;color:#fcd34d;border:1px solid #b45309">🔓 Permitir Bluetooth</button>
   <button class="btn-hdr" style="background:#7f1d1d;color:#fca5a5;border:1px solid #991b1b" onclick="stopServer()" title="Detener el servidor Flask y cerrar la app">⏹ Detener</button>
   <button class="btn-hdr btn-connect" id="btn-connect" onclick="openConnectModal()">🔵 Conectar impresora</button>
 </header>
@@ -1000,6 +1001,23 @@ function _rssiStrength(rssi){
   if(rssi<-45)return 3;
   return 4;
 }
+async function setupBlePermissions(){
+  const b=document.getElementById('btn-ble-perm');
+  if(b){b.disabled=true;b.textContent='⏳ Configurando…';}
+  toast('Solicitando permiso Bluetooth (puede aparecer una ventana de contraseña)…');
+  try{
+    const r=await fetch('/api/ble/setup',{method:'POST'});
+    const d=await r.json();
+    if(d.ok){
+      toast('✅ '+(d.message||'Permisos configurados'),'ok');
+      setTimeout(checkPrinterStatus,3000);
+    }else{
+      toast('❌ '+(d.error||'No se pudo configurar'),'err');
+      if(d.manual)alert('Configura los permisos manualmente en una terminal:\n\n'+d.manual);
+    }
+  }catch(e){toast('❌ '+e.message,'err');}
+  finally{if(b){b.disabled=false;b.textContent='🔓 Permitir Bluetooth';}}
+}
 function updateStatusUI(d){
   const conn = d && d.connected;
   const dot = document.getElementById('status-dot');
@@ -1008,6 +1026,9 @@ function updateStatusUI(d){
   // Header pill
   if(conn){dot.classList.add('on');lbl.textContent=d.name||(d.id?d.id.slice(-8):'Conectada');}  
   else{dot.classList.remove('on');lbl.textContent='Desconectada';}
+  // Aviso de permisos Bluetooth (AppImage)
+  const perm=document.getElementById('btn-ble-perm');
+  if(perm)perm.style.display=(!conn && d && d.error_code==='ble_permissions')?'':'none';
   btn.textContent=conn?'⚫ Desconectar':'🔵 Conectar impresora';
   btn.onclick=conn?disconnectPrinter:openConnectModal;
   // Batería en header

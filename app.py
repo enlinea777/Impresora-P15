@@ -12,7 +12,6 @@ import base64
 import io
 import logging
 import os
-import sys
 import threading
 import webbrowser
 from pathlib import Path
@@ -23,9 +22,18 @@ from PIL import Image
 import printer as _printer_mod
 
 # ── Config ───────────────────────────────────────────────────────────────────
-BASE_DIR   = Path(getattr(sys, "_MEIPASS", Path(__file__).parent))
-UPLOAD_DIR = BASE_DIR / "uploads"
-UPLOAD_DIR.mkdir(exist_ok=True)
+# APP_DIR contiene los recursos empaquetados (templates/static). En el AppImage
+# es de solo lectura; los datos escribibles van a DATA_DIR.
+BASE_DIR = Path(os.environ.get("P15_APP_DIR") or Path(__file__).resolve().parent)
+DATA_DIR = Path(
+    os.environ.get("P15_DATA_DIR")
+    or Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local/share") / "p15-designer"
+)
+UPLOAD_DIR = DATA_DIR / "uploads"
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+TEMPLATES_DIR = BASE_DIR / "templates"
+STATIC_DIR    = BASE_DIR / "static"
 
 logging.basicConfig(
     level=logging.INFO,
@@ -33,17 +41,21 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-app = Flask(__name__, template_folder="templates", static_folder="static")
+app = Flask(
+    __name__,
+    template_folder=str(TEMPLATES_DIR),
+    static_folder=str(STATIC_DIR),
+)
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16 MB
 
 # ── Rutas principales ────────────────────────────────────────────────────────
 @app.route("/")
 def index():
-    return send_from_directory("templates", "index.html")
+    return send_from_directory(str(TEMPLATES_DIR), "index.html")
 
 @app.route("/static/<path:filename>")
 def static_files(filename):
-    return send_from_directory("static", filename)
+    return send_from_directory(str(STATIC_DIR), filename)
 
 
 # ── API: info de etiqueta (para el canvas) ───────────────────────────────────
@@ -89,11 +101,23 @@ def api_disconnect():
 # ── API: estado de la impresora ──────────────────────────────────────────────
 @app.route("/api/status", methods=["GET"])
 def api_status():
-    """Estado rápido vía pygatt (sin imprimir)."""
+    """Estado de la impresora (sin imprimir)."""
     try:
         status = _printer_mod.get_status_simple()
         return jsonify({"ok": True, **status})
     except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+# ── API: configurar permisos Bluetooth (AppImage) ───────────────────────────
+@app.route("/api/ble/setup", methods=["POST"])
+def api_ble_setup():
+    """Copia bun a un directorio escribible y le aplica cap_net_raw."""
+    try:
+        result = _printer_mod.setup_ble_permissions()
+        return jsonify(result), (200 if result.get("ok") else 500)
+    except Exception as e:
+        log.exception("Error configurando permisos BLE")
         return jsonify({"ok": False, "error": str(e)}), 500
 
 
@@ -250,8 +274,10 @@ def run_server(port: int = 5000, open_browser: bool = True):
         _printer_mod._stop_ble_server()
         os._exit(0)
 
-    signal.signal(signal.SIGINT,  _handle_sigint)
-    signal.signal(signal.SIGTERM, _handle_sigint)
+    # signal.signal() solo funciona en el hilo principal (tray_app usa un hilo)
+    if threading.current_thread() is threading.main_thread():
+        signal.signal(signal.SIGINT,  _handle_sigint)
+        signal.signal(signal.SIGTERM, _handle_sigint)
 
     url = f"http://localhost:{port}"
     log.info("Servidor iniciado en %s", url)

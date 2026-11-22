@@ -1,0 +1,16 @@
+# Versiones exactas usadas para compilar el AppImage (Python 3.12.16).
+# Generado con: python -s -m pip freeze
+blinker==1.9.0
+click==8.5.1
+enum-compat==0.0.3
+Flask==3.1.3
+itsdangerous==2.2.0
+Jinja2==3.1.6
+MarkupSafe==3.0.4
+pillow==13.0.0
+pygatt==5.0.0
+pyserial==3.5
+pystray==0.19.5
+python-xlib==0.33
+six==1.17.0
+Werkzeug==3.1.9

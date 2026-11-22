@@ -1,0 +1,54 @@
+export interface FlowControlOptions {
+  starvationTimeoutMs: number;
+  packetDelayMs: number;
+}
+
+export interface LabelSizePreset {
+  widthMm: number;
+  heightMm: number;
+}
+
+export interface DeviceLabelConfig {
+  supportedPaperTypes: ("gap" | "continuous")[];
+  defaultPaperType: "gap" | "continuous";
+  gapSizes: LabelSizePreset[];
+  continuousSizes: LabelSizePreset[];
+  defaultSize: LabelSizePreset;
+}
+
+export interface DeviceProfile {
+  modelId: string;
+  protocolId: string;
+  serviceUuid: string;
+  characteristics: { tx: string; rx: string; cx?: string };
+  packetSize?: number;
+  flowControl: Partial<FlowControlOptions>;
+  defaults: { density: number; paperType: "gap" | "continuous" };
+  /** Which command to use for print darkness: "density" (1F 70 02) or "thickness" (10 FF 10 00) */
+  densityCommand?: "density" | "thickness";
+  namePrefixes: string[];
+  labelConfig?: DeviceLabelConfig;
+}
+
+export interface PrintOptions {
+  density?: number;
+  paperType?: "gap" | "continuous";
+  copies?: number;
+  dither?: "floyd-steinberg" | "threshold" | "none";
+  threshold?: number;
+  postFeedDots?: number;   // avance extra al final para poder cortar (dots)
+  pauseBeforePostMs?: number; // pausa antes de positionToGap/feed (ms)
+  pauseBeforeStopMs?: number; // pausa antes de stop (ms)
+  skip?: string[];         // comandos a omitir (solo diagnóstico)
+}
+
+export interface PrinterStatus {
+  status: string;
+  raw: Uint8Array;
+}
+
+export interface PrinterEventMap {
+  status: PrinterStatus;
+  disconnected: { reason?: string };
+  progress: { bytesSent: number; totalBytes: number };
+}

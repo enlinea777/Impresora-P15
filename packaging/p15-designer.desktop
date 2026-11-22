@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=P15 Designer
+GenericName=Diseñador de etiquetas
+Comment=Diseña e imprime etiquetas para impresoras Marklife P15 por Bluetooth
+Exec=p15-designer %U
+TryExec=p15-designer
+Icon=p15-designer
+Terminal=false
+Categories=Graphics;Utility;
+Keywords=etiquetas;labels;printer;impresora;bluetooth;marklife;p15;
+StartupNotify=true
+StartupWMClass=p15-designer

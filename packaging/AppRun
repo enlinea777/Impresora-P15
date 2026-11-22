@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# AppRun — punto de entrada del AppImage de P15 Designer
+set -euo pipefail
+
+HERE="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+
+export P15_APP_DIR="$HERE/usr/lib/p15/app"
+export P15_THERMOPRINT_DIR="$HERE/usr/lib/p15/thermoprint"
+export P15_DATA_DIR="${P15_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/p15-designer}"
+export P15_PORT="${P15_PORT:-5000}"
+export P15_ICON="$HERE/usr/share/icons/hicolor/512x512/apps/p15-designer.png"
+
+# bun embebido; si existe una copia local con permisos, printer.py la prefiere.
+export BUN_BIN="${BUN_BIN:-$P15_THERMOPRINT_DIR/bun}"
+
+export PYTHONNOUSERSITE=1
+export PYTHONDONTWRITEBYTECODE=1
+export PATH="$HERE/usr/lib/p15/python/bin:$PATH"
+
+PY="$HERE/usr/lib/p15/python/bin/python3"
+mkdir -p "$P15_DATA_DIR"
+
+case "${1:-}" in
+  --setup-bluetooth)
+    exec "$HERE/usr/lib/p15/bin/setup-bluetooth"
+    ;;
+  --version)
+    echo "P15 Designer ${P15_VERSION:-1.0.0}"
+    exit 0
+    ;;
+  --help|-h)
+    cat <<EOF
+P15 Designer — Diseñador de etiquetas para impresoras Marklife P15
+
+Uso:
+  p15-designer                 Inicia la app (bandeja + navegador)
+  p15-designer --no-tray       Solo servidor web (sin bandeja)
+  p15-designer --no-browser    No abrir el navegador automáticamente
+  p15-designer --port 5001     Puerto HTTP alternativo
+  p15-designer --setup-bluetooth   Concede permisos BLE (solo Linux, una vez)
+
+Variables de entorno:
+  P15_PORT, P15_DATA_DIR, P15_BUN, P15_BLE_PORT
+EOF
+    exit 0
+    ;;
+esac
+
+exec "$PY" "$P15_APP_DIR/tray_app.py" "$@"
