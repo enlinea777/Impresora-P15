@@ -7,7 +7,32 @@ La aplicación es un servidor Flask local + una interfaz web. La comunicación B
 se hace mediante un pequeño puente escrito en TypeScript (`thermoprint_ref/`)
 que se ejecuta con [bun](https://bun.sh) y mantiene la conexión con la impresora.
 
-## AppImage (recomendado)
+## Descargas (GitHub Actions)
+
+El repositorio compila automáticamente en
+[GitHub Actions](https://github.com/enlinea777/Impresora-P15/actions). Cada push
+a `main` genera estos artefactos:
+
+| Plataforma | Archivo |
+| --- | --- |
+| Linux x86_64 | `P15-Designer-<v>-x86_64.AppImage` |
+| Linux x86_64 | `P15-Designer-<v>-linux-x86_64.tar.gz` |
+| Linux ARM64 | `P15-Designer-<v>-aarch64.AppImage` |
+| Linux ARM64 | `P15-Designer-<v>-linux-aarch64.tar.gz` |
+| Windows x64 | `P15-Designer-<v>-windows-x86_64.zip` |
+| Windows ARM64 | `P15-Designer-<v>-windows-aarch64.zip` |
+| macOS Intel | `P15-Designer-<v>-macos-x86_64.zip` |
+| macOS Apple Silicon | `P15-Designer-<v>-macos-aarch64.zip` |
+| Flatpak (Linux x86_64) | `P15-Designer-<v>-x86_64.flatpak` |
+
+Al crear un tag `v1.0.0` se publica además un **GitHub Release** con todos los
+archivos y sus checksums.
+
+> Windows ARM64: el addon de `noble` no publica binario para `win32-arm64`; el
+> workflow lo compila con Visual Studio en el runner ARM64. macOS y Windows x64
+> usan binarios precompilados.
+
+## Linux — AppImage (recomendado)
 
 El AppImage incluye **todo**: Python, dependencias de Python, bun, las
 dependencias Node y el código de thermoprint. No hace falta instalar nada.
@@ -37,6 +62,42 @@ AppImage --port 5001            # otro puerto HTTP
 AppImage --setup-bluetooth      # conceder permisos BLE (una vez)
 AppImage --help
 ```
+
+## Windows y macOS — paquete portable
+
+Se compilan en el sistema destino (o en CI) con:
+
+```bash
+python packaging/build_bundle.py
+```
+
+- **Windows:** descomprime el ZIP y ejecuta `P15-Designer.vbs` (sin consola) o
+  `P15-Designer.bat` (con consola, útil para depurar). Los datos y el log van a
+  `%APPDATA%\P15-Designer`.
+- **macOS:** descomprime el ZIP y abre `P15 Designer.app`. La app está firmada
+  solo de forma ad-hoc: si Gatekeeper la bloquea, usa clic derecho → Abrir (o
+  `xattr -dr com.apple.quarantine "P15 Designer.app"`). Los datos van a
+  `~/Library/Application Support/P15-Designer`.
+
+El paquete portable de Linux (`tar.gz`) funciona igual que el AppImage pero sin
+integración de escritorio:
+
+```bash
+tar -xzf P15-Designer-1.0.0-linux-x86_64.tar.gz
+cd P15-Designer
+./P15-Designer
+```
+
+## Flatpak / Flathub
+
+El workflow también genera un `.flatpak` instalable. El manifiesto y las
+instrucciones para enviarlo a Flathub están en
+[`packaging/flatpak/README.md`](packaging/flatpak/README.md).
+
+**Limitación:** el sandbox de Flatpak no concede `CAP_NET_RAW`, que `noble`
+necesita para los sockets HCI. El diseño, la previsualización y la exportación
+funcionan; para imprimir por BLE usa el AppImage o el tar.gz con permisos sobre
+bun. Ver el README de Flatpak.
 
 ### Permisos Bluetooth en Linux
 
@@ -97,7 +158,10 @@ tray_app.py                Lanzador con bandeja del sistema
 templates/index.html       Interfaz web (editor de etiquetas)
 static/                    Recursos estáticos
 thermoprint_ref/           Código vendorizado de thermoprint + ble_server.ts
-packaging/                 AppRun, .desktop, ícono y script de AppImage
+packaging/                 Scripts de AppImage, bundle portable y Flatpak
+packaging/build_bundle.py  Paquete portable para Linux/Windows/macOS
+packaging/flatpak/         Manifiesto Flatpak/Flathub
+.github/workflows/build.yml  CI: 6 targets + Flatpak + release
 run.sh                     Lanzador de desarrollo
 ```
 

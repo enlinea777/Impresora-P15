@@ -38,6 +38,11 @@ except ImportError:
 def _data_dir() -> Path:
     if env := os.environ.get("P15_DATA_DIR"):
         return Path(env)
+    if sys.platform.startswith("win"):
+        base = os.environ.get("APPDATA") or str(Path.home() / "AppData/Roaming")
+        return Path(base) / "P15-Designer"
+    if sys.platform == "darwin":
+        return Path.home() / "Library/Application Support/P15-Designer"
     base = os.environ.get("XDG_DATA_HOME") or str(Path.home() / ".local/share")
     return Path(base) / "p15-designer"
 

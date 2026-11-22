@@ -12,6 +12,7 @@ import base64
 import io
 import logging
 import os
+import sys
 import threading
 import webbrowser
 from pathlib import Path
@@ -25,10 +26,19 @@ import printer as _printer_mod
 # APP_DIR contiene los recursos empaquetados (templates/static). En el AppImage
 # es de solo lectura; los datos escribibles van a DATA_DIR.
 BASE_DIR = Path(os.environ.get("P15_APP_DIR") or Path(__file__).resolve().parent)
-DATA_DIR = Path(
-    os.environ.get("P15_DATA_DIR")
-    or Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local/share") / "p15-designer"
-)
+
+
+def _default_data_dir() -> Path:
+    if os.name == "nt":
+        base = os.environ.get("APPDATA") or str(Path.home() / "AppData/Roaming")
+        return Path(base) / "P15-Designer"
+    if sys.platform == "darwin":
+        return Path.home() / "Library/Application Support/P15-Designer"
+    base = os.environ.get("XDG_DATA_HOME") or str(Path.home() / ".local/share")
+    return Path(base) / "p15-designer"
+
+
+DATA_DIR = Path(os.environ.get("P15_DATA_DIR") or _default_data_dir())
 UPLOAD_DIR = DATA_DIR / "uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 

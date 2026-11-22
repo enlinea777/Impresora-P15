@@ -48,9 +48,10 @@ def _default_data_dir() -> Path:
         return Path.home() / "Library/Application Support/P15-Designer"
     return Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local/share") / "p15-designer"
 
+_BUN_NAME = "bun.exe" if _OS == "Windows" else "bun"
 DATA_DIR  = _default_data_dir()
-_LOCAL_BUN = DATA_DIR / "bin" / "bun"
-_BUNDLED_BUN = _THERMOPRINT_REF / "bun"   # incluido en el AppImage
+_LOCAL_BUN = DATA_DIR / "bin" / _BUN_NAME
+_BUNDLED_BUN = _THERMOPRINT_REF / _BUN_NAME   # incluido en el paquete
 
 BLE_SERVER_PORT  = int(os.environ.get("P15_BLE_PORT", "7315"))
 BLE_SERVER_URL   = f"http://localhost:{BLE_SERVER_PORT}"

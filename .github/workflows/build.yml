@@ -1,0 +1,224 @@
+name: Build
+
+on:
+  push:
+    branches: [main, master]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHONUNBUFFERED: "1"
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - id: v
+        shell: bash
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            v="${GITHUB_REF_NAME#v}"
+          else
+            v="1.0.0"
+          fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "Versión: $v"
+
+  linux:
+    name: Linux ${{ matrix.arch }}
+    needs: version
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: x86_64
+          - runner: ubuntu-24.04-arm
+            arch: aarch64
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build AppImage
+        env:
+          P15_VERSION: ${{ needs.version.outputs.version }}
+        run: ./packaging/build_appimage.sh
+
+      - name: Build portable tar.gz
+        env:
+          P15_VERSION: ${{ needs.version.outputs.version }}
+        run: python3 packaging/build_bundle.py
+
+      - name: Generate checksums
+        run: |
+          cd dist
+          sha256sum * > "SHA256SUMS-linux-${{ matrix.arch }}.txt"
+          cat "SHA256SUMS-linux-${{ matrix.arch }}.txt"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: P15-Designer-linux-${{ matrix.arch }}
+          path: dist/*
+          if-no-files-found: error
+
+  windows:
+    name: Windows ${{ matrix.arch }}
+    needs: version
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-2022
+            arch: x86_64
+            pyarch: x64
+          - runner: windows-11-arm
+            arch: aarch64
+            pyarch: arm64
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          architecture: ${{ matrix.pyarch }}
+
+      # Necesario para compilar el addon nativo de noble en Windows ARM64.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Build portable zip
+        shell: pwsh
+        env:
+          P15_VERSION: ${{ needs.version.outputs.version }}
+        run: python packaging/build_bundle.py
+
+      - name: Generate checksums
+        shell: pwsh
+        run: |
+          Get-ChildItem dist -Filter "*.zip" | ForEach-Object {
+            $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
+            "$hash  $($_.Name)" | Out-File -Append -Encoding ascii "dist/SHA256SUMS-windows-${{ matrix.arch }}.txt"
+          }
+          Get-Content "dist/SHA256SUMS-windows-${{ matrix.arch }}.txt"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: P15-Designer-windows-${{ matrix.arch }}
+          path: dist/*
+          if-no-files-found: error
+
+  macos:
+    name: macOS ${{ matrix.arch }}
+    needs: version
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15-intel
+            arch: x86_64
+          - runner: macos-15
+            arch: aarch64
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build P15 Designer.app
+        env:
+          P15_VERSION: ${{ needs.version.outputs.version }}
+        run: python3 packaging/build_bundle.py
+
+      - name: Generate checksums
+        run: |
+          cd dist
+          shasum -a 256 * > "SHA256SUMS-macos-${{ matrix.arch }}.txt"
+          cat "SHA256SUMS-macos-${{ matrix.arch }}.txt"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: P15-Designer-macos-${{ matrix.arch }}
+          path: dist/*
+          if-no-files-found: error
+
+  flatpak:
+    name: Flatpak
+    needs: version
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install flatpak
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder
+
+      - name: Install runtime and SDK
+        run: |
+          flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user --noninteractive -y flathub \
+            org.freedesktop.Platform//25.08 org.freedesktop.Sdk//25.08
+
+      - name: Build portable bundle
+        run: python3 packaging/build_bundle.py --no-archive
+
+      - name: Build Flatpak
+        env:
+          P15_VERSION: ${{ needs.version.outputs.version }}
+        run: ./packaging/build_flatpak.sh
+
+      - name: Generate checksums
+        run: |
+          cd dist
+          sha256sum *.flatpak > SHA256SUMS-flatpak.txt
+          cat SHA256SUMS-flatpak.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: P15-Designer-flatpak
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    name: Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [version, linux, windows, macos, flatpak]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Show files
+        run: ls -lh artifacts
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" artifacts/* \
+            --generate-notes \
+            --title "P15 Designer ${GITHUB_REF_NAME}"

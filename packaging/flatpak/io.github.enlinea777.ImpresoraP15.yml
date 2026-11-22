@@ -1,0 +1,39 @@
+app-id: io.github.enlinea777.ImpresoraP15
+runtime: org.freedesktop.Platform
+runtime-version: '25.08'
+sdk: org.freedesktop.Sdk
+command: p15-designer
+separate-locales: false
+
+finish-args:
+  - --share=network
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  - --allow=bluetooth
+  - --talk-name=org.freedesktop.Notifications
+  - --talk-name=org.freedesktop.portal.Desktop
+  - --env=P15_FLATPAK=1
+
+modules:
+  - name: p15-designer
+    buildsystem: simple
+    build-commands:
+      - mkdir -p /app/lib/p15 /app/bin
+      - cp -a p15/. /app/lib/p15/
+      - install -Dm755 flatpak-launcher.sh /app/bin/p15-designer
+      - install -Dm644 p15-designer.desktop /app/share/applications/io.github.enlinea777.ImpresoraP15.desktop
+      - install -Dm644 p15-designer.png /app/share/icons/hicolor/512x512/apps/io.github.enlinea777.ImpresoraP15.png
+      - install -Dm644 io.github.enlinea777.ImpresoraP15.appdata.xml /app/share/metainfo/io.github.enlinea777.ImpresoraP15.appdata.xml
+    sources:
+      - type: dir
+        path: p15
+      - type: file
+        path: flatpak-launcher.sh
+      - type: file
+        path: p15-designer.desktop
+      - type: file
+        path: p15-designer.png
+      - type: file
+        path: io.github.enlinea777.ImpresoraP15.appdata.xml
