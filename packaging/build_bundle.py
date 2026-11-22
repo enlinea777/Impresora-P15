@@ -376,6 +376,7 @@ def main() -> None:
         shutil.copy2(ROOT / item, app_dst / item)
     for item in ("templates", "static"):
         shutil.copytree(ROOT / item, app_dst / item)
+    (app_dst / "VERSION").write_text(f"{version}\n", encoding="utf-8")
     shutil.copy2(ROOT / "packaging" / "p15-designer.png", bundle / "p15-designer.png")
 
     # 5. Dependencias Node

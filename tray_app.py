@@ -9,6 +9,8 @@ Uso:
     python tray_app.py [--port 5000] [--no-browser]
 """
 
+from __future__ import annotations
+
 import argparse
 import io
 import logging
@@ -22,16 +24,18 @@ from pathlib import Path
 
 # ── pystray + PIL ──────────────────────────────────────────────────────────────
 try:
-    import pystray
     from PIL import Image as PILImage, ImageDraw
+except Exception:
+    PILImage = ImageDraw = None
+
+try:
+    import pystray
     _HAS_TRAY = True
-except ImportError:
+except Exception as _tray_err:
+    # En Wayland/headless el import de pystray puede fallar al conectar con X11.
     pystray = None
     _HAS_TRAY = False
-    try:
-        from PIL import Image as PILImage, ImageDraw
-    except ImportError:
-        PILImage = ImageDraw = None
+    print(f"Aviso: bandeja del sistema no disponible ({_tray_err}); modo web.")
 
 
 # ── Directorio de datos ───────────────────────────────────────────────────────
@@ -65,6 +69,15 @@ log = logging.getLogger(__name__)
 
 # ── Configuración ─────────────────────────────────────────────────────────────
 DEFAULT_PORT = int(os.environ.get("P15_PORT", "5000"))
+
+
+def _version() -> str:
+    if env := os.environ.get("P15_VERSION"):
+        return env
+    try:
+        return (Path(__file__).parent / "VERSION").read_text(encoding="utf-8").strip()
+    except OSError:
+        return "1.0.0"
 _server_thread: threading.Thread | None = None
 _tray_icon: pystray.Icon | None = None
 _port: int = DEFAULT_PORT
@@ -169,6 +182,7 @@ def main():
     global _tray_icon, _server_thread, _port
 
     parser = argparse.ArgumentParser(description="Impresora P15 — bandeja del sistema")
+    parser.add_argument("--version", action="version", version=f"P15 Designer {_version()}")
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
     parser.add_argument("--no-browser", action="store_true", help="No abrir el navegador al iniciar")
     parser.add_argument("--no-tray", action="store_true", help="No mostrar ícono de bandeja")

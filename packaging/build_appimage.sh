@@ -109,6 +109,7 @@ mkdir -p "$APP_DST"
 for item in app.py printer.py tray_app.py templates static; do
   cp -a "$ROOT/$item" "$APP_DST/"
 done
+printf '%s\n' "$VERSION" > "$APP_DST/VERSION"
 
 # ── 4. Dependencias Node (solo workspace cli) ───────────────────────────────
 log "Instalando dependencias Node con bun"

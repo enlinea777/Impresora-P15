@@ -29,6 +29,7 @@ log = logging.getLogger(__name__)
 
 # ── Sistema operativo ──────────────────────────────────────────────────────
 _OS = platform.system()   # 'Linux', 'Darwin', 'Windows'
+_IS_FLATPAK = os.environ.get("P15_FLATPAK") == "1"
 
 # ── Rutas ──────────────────────────────────────────────────────────────────
 _APP_DIR         = Path(os.environ.get("P15_APP_DIR") or Path(__file__).resolve().parent)
@@ -142,6 +143,11 @@ def setup_ble_permissions() -> dict:
     """
     if _OS != "Linux":
         return {"ok": True, "message": "No hace falta configurar permisos en este sistema."}
+    if _IS_FLATPAK:
+        return {
+            "ok": False,
+            "error": "Flatpak no permite aplicar cap_net_raw. Usa el AppImage o el tar.gz portable para imprimir por Bluetooth.",
+        }
 
     src = Path(_BUNDLED_BUN)
     if not src.exists():
@@ -208,6 +214,9 @@ def _start_ble_server() -> None:
     """Arranca ble_server.ts en segundo plano si no está corriendo."""
     global _ble_proc
     with _ble_lock:
+        if _IS_FLATPAK:
+            log.info("Flatpak: puente BLE deshabilitado (sandbox sin CAP_NET_RAW).")
+            return
         if _ble_proc is not None and _ble_proc.poll() is None:
             return  # ya está corriendo
 
@@ -312,7 +321,7 @@ def _watchdog() -> None:
     global _ble_proc, _shuttingDown
     while not _shuttingDown:
         time.sleep(5)
-        if _shuttingDown:
+        if _shuttingDown or _IS_FLATPAK:
             break
         with _ble_lock:
             proc_dead = _ble_proc is None or _ble_proc.poll() is not None
@@ -475,6 +484,16 @@ def print_text_label(
 
 def get_status_simple() -> dict:
     """Estado de la impresora vía servidor BLE persistente."""
+    if _IS_FLATPAK:
+        return {
+            "connected": False,
+            "flatpak": True,
+            "ble_permissions_ok": False,
+            "error": (
+                "Bluetooth no disponible dentro de Flatpak (el sandbox no concede "
+                "CAP_NET_RAW). Para imprimir usa el AppImage o el tar.gz portable."
+            ),
+        }
     result = _ble_get("/status", timeout=10)
     perms_ok = ble_permissions_ok()
     if result.get("connected"):
