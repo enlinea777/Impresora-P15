@@ -7,6 +7,13 @@ La aplicación es un servidor Flask local + una interfaz web. La comunicación B
 se hace mediante un pequeño puente escrito en TypeScript (`thermoprint_ref/`)
 que se ejecuta con [bun](https://bun.sh) y mantiene la conexión con la impresora.
 
+## Interfaz
+
+![Interfaz de P15 Designer](docs/screenshots/p15-designer-ui.png)
+
+*Editor visual con panel de impresión, estado de la impresora (batería, RSSI,
+DPI) y previsualización de la etiqueta de 40 × 12 mm.*
+
 ## Descargas (GitHub Actions)
 
 El repositorio compila automáticamente en
