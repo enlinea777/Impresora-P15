@@ -39,6 +39,13 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
+# En Windows la consola usa cp1252 y falla con ▶/❌; forzar UTF-8.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 ROOT = Path(__file__).resolve().parent.parent
 CACHE = ROOT / ".build-cache"
 BUILD = ROOT / "build"
