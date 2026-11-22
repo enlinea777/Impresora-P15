@@ -112,18 +112,17 @@ done
 
 # ── 4. Dependencias Node (solo workspace cli) ───────────────────────────────
 log "Instalando dependencias Node con bun"
-rm -rf "$STAGE"
-mkdir -p "$STAGE"
-rsync -a \
-  --exclude 'node_modules' \
-  --exclude '.git' \
-  --exclude '*.log' \
-  "$ROOT/thermoprint_ref/" "$STAGE/"
-
-if [ "${P15_SKIP_NODE:-0}" != "1" ]; then
-  ( cd "$STAGE" && "$BUNDLED_BUN" install --production --filter '@thermoprint/cli' )
+if [ "${P15_SKIP_NODE:-0}" = "1" ] && [ -d "$STAGE/node_modules" ]; then
+  echo "   (P15_SKIP_NODE=1: reutilizando $STAGE)"
 else
-  echo "   (P15_SKIP_NODE=1: se omite bun install)"
+  rm -rf "$STAGE"
+  mkdir -p "$STAGE"
+  rsync -a \
+    --exclude 'node_modules' \
+    --exclude '.git' \
+    --exclude '*.log' \
+    "$ROOT/thermoprint_ref/" "$STAGE/"
+  ( cd "$STAGE" && "$BUNDLED_BUN" install --production --filter '@thermoprint/cli' )
 fi
 
 # Quitar binarios de sharp para musl: el AppImage usa glibc.
