@@ -29,6 +29,7 @@ modules:
     sources:
       - type: dir
         path: p15
+        dest: p15
       - type: file
         path: flatpak-launcher.sh
       - type: file

@@ -122,7 +122,7 @@ else
     --exclude '.git' \
     --exclude '*.log' \
     "$ROOT/thermoprint_ref/" "$STAGE/"
-  ( cd "$STAGE" && "$BUNDLED_BUN" install --production \
+  ( cd "$STAGE" && "$BUNDLED_BUN" install --production --ignore-scripts \
       --filter '@thermoprint/cli' --frozen-lockfile )
 fi
 

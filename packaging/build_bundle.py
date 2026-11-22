@@ -383,7 +383,7 @@ def main() -> None:
         ignore_names={"node_modules", ".git", "__pycache__"},
     )
     subprocess.run(
-        [str(bun_dst), "install", "--production",
+        [str(bun_dst), "install", "--production", "--ignore-scripts",
          "--filter", "@thermoprint/cli", "--frozen-lockfile"],
         cwd=stage, check=True,
     )
