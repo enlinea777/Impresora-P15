@@ -13,6 +13,7 @@ import json
 import logging
 import os
 import platform
+import signal
 import shutil
 import subprocess
 import sys
@@ -31,8 +32,9 @@ _OS = platform.system()   # 'Linux', 'Darwin', 'Windows'
 
 # ── Rutas ──────────────────────────────────────────────────────────────────
 _BASE_DIR        = Path(__file__).parent
-_THERMOPRINT_CLI = _BASE_DIR / "thermoprint_ref" / "packages" / "cli" / "src" / "index.ts"
-_BLE_SERVER_TS   = _BASE_DIR / "ble_server.ts"
+_THERMOPRINT_REF = _BASE_DIR / "thermoprint_ref"
+_BLE_SERVER_TS   = _THERMOPRINT_REF / "packages" / "cli" / "src" / "ble_server.ts"
+_THERMOPRINT_CLI = _THERMOPRINT_REF / "packages" / "cli" / "src" / "index.ts"
 
 BLE_SERVER_PORT  = 7315
 BLE_SERVER_URL   = f"http://localhost:{BLE_SERVER_PORT}"
@@ -63,14 +65,15 @@ def _find_bun() -> str:
 _BUN = _find_bun()
 
 # ── Constantes ─────────────────────────────────────────────────────────────
-HEAD_W_PX          = 384
+HEAD_W_PX          = 384   # ancho físico del cabezal (referencia, no se usa para padding)
 DOTS_PER_MM        = 8
-DEFAULT_LABEL_W_MM = 38
+DEFAULT_LABEL_W_MM = 40    # etiqueta 40mm × 12mm
 DEFAULT_LABEL_H_MM = 12
 
 # ── Proceso del servidor BLE ───────────────────────────────────────────────
 _ble_proc: Optional[subprocess.Popen] = None
 _ble_lock = threading.Lock()
+_shuttingDown = False
 
 def _start_ble_server() -> None:
     """Arranca ble_server.ts en segundo plano si no está corriendo."""
@@ -86,11 +89,12 @@ def _start_ble_server() -> None:
         try:
             _ble_proc = subprocess.Popen(
                 [_BUN, "run", str(_BLE_SERVER_TS)],
-                cwd=str(_BASE_DIR),
+                cwd=str(_THERMOPRINT_REF),
                 env=env,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
+                start_new_session=True,  # crea nuevo grupo de procesos → killpg funciona
             )
             # Hilo que relanza la salida del servidor BLE al log de Python
             def _relay():
@@ -121,29 +125,61 @@ def _wait_for_ble_server(timeout: float = 15) -> bool:
     return False
 
 def _stop_ble_server() -> None:
-    """Detiene el servidor BLE limpiamente."""
-    global _ble_proc
+    """Detiene el servidor BLE y todos sus procesos hijos."""
+    global _ble_proc, _shuttingDown
+    _shuttingDown = True
     import urllib.request
+    # 1. Pedir shutdown limpio al servidor HTTP
     try:
         urllib.request.urlopen(
             urllib.request.Request(f"{BLE_SERVER_URL}/shutdown", method="POST"),
             timeout=3,
         )
-        time.sleep(0.5)
+        time.sleep(0.8)
     except Exception:
         pass
+    # 2. Matar el grupo de procesos completo (bun + hijos noble/bluetooth)
     with _ble_lock:
-        if _ble_proc and _ble_proc.poll() is None:
-            _ble_proc.terminate()
-            try:
-                _ble_proc.wait(timeout=3)
-            except subprocess.TimeoutExpired:
-                _ble_proc.kill()
+        proc = _ble_proc
         _ble_proc = None
+    if proc and proc.poll() is None:
+        try:
+            pgid = os.getpgid(proc.pid)
+            os.killpg(pgid, signal.SIGTERM)
+            time.sleep(0.5)
+            if proc.poll() is None:
+                os.killpg(pgid, signal.SIGKILL)
+        except Exception:
+            try:
+                proc.kill()
+            except Exception:
+                pass
+        try:
+            proc.wait(timeout=2)
+        except Exception:
+            pass
+    log.info("Servidor BLE detenido.")
 
 # Registrar shutdown al salir del proceso Python
 import atexit
 atexit.register(_stop_ble_server)
+
+# ── Watchdog: reinicia ble_server si muere ────────────────────────────────
+def _watchdog() -> None:
+    """Hilo daemon que vigila el proceso bun y lo reinicia si cae."""
+    global _ble_proc, _shuttingDown
+    while not _shuttingDown:
+        time.sleep(5)
+        if _shuttingDown:
+            break
+        with _ble_lock:
+            proc_dead = _ble_proc is None or _ble_proc.poll() is not None
+        if proc_dead:
+            log.warning("Servidor BLE caído — reiniciando…")
+            _start_ble_server()
+
+_watchdog_thread = threading.Thread(target=_watchdog, daemon=True, name="ble-watchdog")
+_watchdog_thread.start()
 
 # Arrancar servidor BLE al importar el módulo
 _start_ble_server()
@@ -176,21 +212,36 @@ def _ble_post(path: str, data: dict, timeout: float = 45) -> dict:
     except Exception as e:
         return {"ok": False, "error": str(e)}
 
+def _wait_ble_connected(timeout: float = 20.0) -> bool:
+    """Espera a que el puente BLE tenga una conexión activa con la impresora."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if _ble_get("/ping", timeout=2).get("connected"):
+            return True
+        time.sleep(0.4)
+    return False
+
 # ── Preparar imagen ─────────────────────────────────────────────────────────
 def prepare_image(
     img: Image.Image,
     label_w_mm: int = DEFAULT_LABEL_W_MM,
     label_h_mm: int = DEFAULT_LABEL_H_MM,
 ) -> Image.Image:
-    content_w = label_w_mm * DOTS_PER_MM
-    content_h = label_h_mm * DOTS_PER_MM
+    """Redimensiona la imagen al tamaño exacto de la etiqueta (sin márgenes extra).
+    El canvas resultante es label_w_px × label_h_px.
+    Tras rotar 90° en ble_server queda label_h_px × label_w_px (cabezal × avance).
+    """
+    label_w_px = label_w_mm * DOTS_PER_MM   # eje avance (largo de la etiqueta)
+    label_h_px = label_h_mm * DOTS_PER_MM   # eje cabezal (ancho de la etiqueta)
 
     img = img.convert("RGB")
-    img.thumbnail((content_w, content_h), Image.LANCZOS)
+    # Redimensionar preservando proporción, ajustando al tamaño de la etiqueta
+    img.thumbnail((label_w_px, label_h_px), Image.LANCZOS)
 
-    canvas = Image.new("RGB", (HEAD_W_PX, content_h), (255, 255, 255))
-    x_off = (HEAD_W_PX - img.width) // 2
-    y_off = (content_h  - img.height) // 2
+    # Canvas exactamente del tamaño de la etiqueta — sin relleno lateral
+    canvas = Image.new("RGB", (label_w_px, label_h_px), (255, 255, 255))
+    x_off = (label_w_px - img.width)  // 2
+    y_off = (label_h_px - img.height) // 2
     canvas.paste(img, (x_off, y_off))
     return canvas
 
@@ -207,9 +258,22 @@ def print_image(
     label_w_mm: int = DEFAULT_LABEL_W_MM,
     label_h_mm: int = DEFAULT_LABEL_H_MM,
     copies: int = 1,
+    post_feed_dots: int = 0,
 ) -> dict:
-    """Imprime una imagen PIL en la P15 vía ble_server.ts."""
+    """
+    Imprime una imagen PIL en la P15 vía ble_server.ts.
+
+    Con papel de etiquetas (``paper_type="gap"``) el protocolo envía
+    ``positionToGap`` y el sensor avanza solo hasta el espacio en blanco:
+    no hay que agregar avance extra o se salta la etiqueta siguiente.
+    """
     density = max(1, min(3, density))
+    if not _wait_ble_connected():
+        return {
+            "success": False,
+            "message": "Impresora no conectada por BLE (revisa encendido/alcance)",
+            "copies": [],
+        }
     prepared = prepare_image(img, label_w_mm, label_h_mm)
 
     results = []
@@ -219,10 +283,11 @@ def print_image(
             prepared.save(tmp_path, format="PNG")
         try:
             result = _ble_post("/print", {
-                "imagePath": tmp_path,
-                "density":   density,
-                "paper":     paper_type,
-                "width":     HEAD_W_PX,
+                "imagePath":    tmp_path,
+                "density":      density,
+                "paper":        paper_type,
+                "width":        HEAD_W_PX,
+                "postFeedDots": post_feed_dots,
             }, timeout=45)
             results.append({"copy": copy_num + 1, **result})
             log.info("Copia %d/%d: %s", copy_num + 1, copies,

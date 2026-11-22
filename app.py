@@ -119,6 +119,9 @@ def api_print():
     paper   = body.get("paper", "gap")
     w_mm    = int(body.get("width_mm",  _printer_mod.DEFAULT_LABEL_W_MM))
     h_mm    = int(body.get("height_mm", _printer_mod.DEFAULT_LABEL_H_MM))
+    # Con etiquetas (gap) el sensor posiciona la siguiente: sin avance extra.
+    # Con papel continuo se deja un pequeño avance para poder cortar.
+    post_feed_dots = int(body.get('post_feed_dots', 0 if paper == 'gap' else 64))
 
     if not img_b64:
         return jsonify({"ok": False, "error": "Sin imagen"}), 400
@@ -139,6 +142,7 @@ def api_print():
             label_w_mm=w_mm,
             label_h_mm=h_mm,
             copies=copies,
+            post_feed_dots=post_feed_dots,
         )
         if result["success"]:
             return jsonify({"ok": True, "message": result["message"]})
@@ -211,7 +215,10 @@ def api_upload():
 def api_stop():
     """Detiene el servidor limpiamente desde el navegador."""
     log.info("Detener solicitado desde la interfaz web")
-    threading.Timer(0.3, lambda: os._exit(0)).start()
+    def _shutdown():
+        _printer_mod._stop_ble_server()
+        os._exit(0)
+    threading.Timer(0.3, _shutdown).start()
     return jsonify({"ok": True, "message": "Servidor detenido"})
 
 
@@ -237,9 +244,10 @@ def api_print_text():
 def run_server(port: int = 5000, open_browser: bool = True):
     import signal
 
-    # Asegurar que Ctrl+C siempre mata el proceso, incluso desde un hilo
+    # Asegurar que Ctrl+C siempre mata el proceso y bun, incluso desde un hilo
     def _handle_sigint(sig, frame):
-        log.info("Servidor detenido (Ctrl+C)")
+        log.info("Servidor detenido (señal %s)", sig)
+        _printer_mod._stop_ble_server()
         os._exit(0)
 
     signal.signal(signal.SIGINT,  _handle_sigint)

@@ -13,6 +13,7 @@
   --green:#10b981;--red:#ef4444;--yellow:#f59e0b;
   --text:#f9fafb;--text2:#9ca3af;--border:#374151;
   --header-h:50px;--ctx-h:44px;--bottom-h:220px;
+  --canvas-h:240px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;overflow:hidden}
@@ -42,7 +43,7 @@ header{height:var(--header-h);flex-shrink:0;background:var(--panel);border-botto
 .ctx-btn:hover,.ctx-btn.active{background:var(--accent);color:#fff}
 .ctx-empty{color:var(--text2);font-size:.76rem;flex:1;text-align:center}
 /* CANVAS AREA */
-.canvas-area{flex:1;overflow:hidden;position:relative;}
+.canvas-area{height:var(--canvas-h);flex-shrink:0;overflow:hidden;position:relative;}
 .canvas-scroll{width:100%;height:100%;overflow:auto;display:flex;align-items:center;justify-content:center;background-image:linear-gradient(rgba(255,255,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.03) 1px,transparent 1px);background-size:20px 20px;background-color:#0f172a;}
 .canvas-scroll.panning{cursor:grabbing!important}
 #canvas-inner{display:inline-block;box-shadow:0 0 0 2px #4b5563,0 8px 40px rgba(0,0,0,.8);border-radius:2px;flex-shrink:0;margin:24px;}
@@ -52,11 +53,13 @@ header{height:var(--header-h);flex-shrink:0;background:var(--panel);border-botto
 #zoom-pct{font-size:.73rem;min-width:38px;text-align:center;font-weight:700}
 .cursor-info{position:absolute;bottom:12px;left:12px;background:rgba(31,41,55,.85);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:.68rem;color:var(--text2);pointer-events:none;}
 /* BOTTOM PANEL */
-.bottom-panel{height:var(--bottom-h);flex-shrink:0;background:var(--panel);border-top:1px solid var(--border);display:flex;flex-direction:column;position:relative;transition:height .2s;}
-.panel-toggle{position:absolute;top:-14px;left:50%;transform:translateX(-50%);width:48px;height:14px;background:var(--panel);border:1px solid var(--border);border-bottom:none;border-radius:6px 6px 0 0;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.58rem;color:var(--text2);z-index:5;}
+.bottom-panel{flex:1;min-height:80px;background:var(--panel);border-top:1px solid var(--border);display:flex;flex-direction:column;position:relative;overflow:hidden;}
+/* DIVISOR ARRASTRABLE */
+.resize-handle{height:6px;flex-shrink:0;background:var(--panel);border-top:1px solid var(--border);border-bottom:1px solid var(--border);cursor:ns-resize;display:flex;align-items:center;justify-content:center;user-select:none;transition:background .12s;z-index:4;}
+.resize-handle:hover,.resize-handle.dragging{background:var(--accent);}
+.resize-handle::after{content:'';width:32px;height:2px;background:currentColor;border-radius:2px;opacity:.4;}
+.panel-toggle{position:absolute;top:0;right:10px;width:28px;height:22px;background:var(--panel);border:1px solid var(--border);border-top:none;border-radius:0 0 5px 5px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.58rem;color:var(--text2);z-index:5;}
 .panel-toggle:hover{color:var(--accent)}
-.bottom-panel.collapsed{height:38px}
-.bottom-panel.collapsed .tabs-body{display:none}
 .tabs-nav{display:flex;align-items:center;gap:1px;padding:4px 10px 0;flex-shrink:0;border-bottom:1px solid var(--border);overflow-x:auto;}
 .tab-btn{padding:5px 13px;border-radius:6px 6px 0 0;border:none;background:transparent;color:var(--text2);cursor:pointer;font-size:.76rem;font-weight:600;transition:.13s;white-space:nowrap;border:1px solid transparent;border-bottom:none;margin-bottom:-1px;}
 .tab-btn:hover{color:var(--text);background:rgba(255,255,255,.05)}
@@ -66,6 +69,7 @@ header{height:var(--header-h);flex-shrink:0;background:var(--panel);border-botto
 .tabs-body{flex:1;overflow:hidden;background:var(--bg);}
 .tab-pane{display:none;width:100%;height:100%;padding:10px 14px;overflow-y:auto;overflow-x:hidden;}
 .tab-pane.active{display:flex;gap:14px;flex-wrap:wrap;align-content:flex-start;}
+.tab-pane.active.tab-col{flex-wrap:nowrap;overflow-x:auto;}
 /* CONTROLES */
 .cg{display:flex;flex-direction:column;gap:4px;min-width:110px;}
 .cg.wide{min-width:200px;max-width:270px}
@@ -80,7 +84,7 @@ input[type=color]{width:100%;height:27px;padding:1px;background:#0f172a;border:1
 .bt svg{width:13px;height:13px;fill:currentColor;flex-shrink:0}
 .vsep{width:1px;height:100%;background:var(--border);flex-shrink:0}
 /* IMAGEN GRID */
-.img-grid{display:flex;flex-wrap:wrap;gap:4px;max-height:140px;overflow-y:auto;padding-right:3px;}
+.img-grid{display:flex;flex-wrap:wrap;gap:4px;flex:1;overflow-y:auto;padding-right:3px;align-content:flex-start;}
 .img-item{width:42px;height:42px;background:var(--card);border:1px solid var(--border);border-radius:5px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.12s;position:relative;}
 .img-item:hover{border-color:var(--accent);background:rgba(59,130,246,.15)}
 .img-item svg{width:28px;height:28px;fill:#e5e7eb;}
@@ -95,6 +99,16 @@ input[type=color]{width:100%;height:27px;padding:1px;background:#0f172a;border:1
 .bp{background:var(--accent);color:#fff}.bp:hover{background:var(--accent2)}
 .bg2{background:var(--card);color:var(--text);border:1px solid var(--border)}.bg2:hover{background:var(--border)}
 .bs{background:var(--green);color:#fff}.bs:hover{filter:brightness(1.1)}
+/* SAVED DESIGNS */
+.saved-grid{display:flex;flex-wrap:wrap;gap:7px;max-height:120px;overflow-y:auto;padding:2px 3px 2px 0;}
+.saved-item{position:relative;cursor:pointer;border:1px solid var(--border);border-radius:6px;overflow:hidden;transition:.12s;background:var(--card);flex-shrink:0;}
+.saved-item:hover{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent);}
+.saved-thumb{display:block;width:160px;height:48px;image-rendering:pixelated;background:#fff;}
+.saved-caption{padding:2px 6px 4px;}
+.saved-name{font-size:.65rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:148px;display:block;}
+.saved-date{font-size:.6rem;color:var(--text2);}
+.saved-del{position:absolute;top:2px;right:2px;width:17px;height:17px;border-radius:3px;border:none;background:rgba(239,68,68,.85);color:#fff;cursor:pointer;font-size:.65rem;display:flex;align-items:center;justify-content:center;}
+.saved-del:hover{background:var(--red);}
 /* DEV LIST */
 .dev-list{max-height:220px;overflow-y:auto;margin-top:8px}
 .dev-item{padding:8px 11px;border-radius:6px;cursor:pointer;border:1px solid var(--border);margin-bottom:4px;display:flex;align-items:center;gap:8px;transition:.12s;}
@@ -124,6 +138,25 @@ input[type=color]{width:100%;height:27px;padding:1px;background:#0f172a;border:1
 .rssi-bar span.on{background:var(--green)}
 .btn-print-big{padding:9px 20px;border-radius:7px;border:none;cursor:pointer;font-size:.84rem;font-weight:700;background:var(--green);color:#fff;transition:.12s;display:flex;align-items:center;gap:6px;}
 .btn-print-big:hover{filter:brightness(1.1)}
+/* LAYOUT PRINCIPAL */
+.work-area{flex:1;display:flex;overflow:hidden;min-height:0;}
+.canvas-side{flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden;}
+.print-side{width:248px;flex-shrink:0;background:var(--panel);border-left:1px solid var(--border);overflow-y:auto;padding:9px 11px;display:flex;flex-direction:column;gap:5px;}
+.ps-title{font-size:.76rem;font-weight:700;color:var(--text);padding:3px 0 7px;border-bottom:1px solid var(--border);letter-spacing:.3px;}
+.ps-sep{height:1px;background:var(--border);flex-shrink:0;margin:2px 0;}
+.print-side .cg{min-width:unset;width:100%;}
+.print-side .bt{width:100%;justify-content:center;}
+/* SAVED VIEW */
+.saved-view{display:none;flex:1;flex-direction:column;overflow:hidden;}
+.saved-view.active{display:flex;}
+.saved-view-hdr{padding:9px 14px;background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;gap:10px;}
+.saved-view-hdr h3{font-size:.86rem;font-weight:700;margin:0;white-space:nowrap;}
+.saved-full-grid{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-wrap:wrap;gap:10px;align-content:flex-start;background:var(--bg);}
+.saved-full-grid .saved-item{cursor:pointer;}
+.saved-full-grid .saved-item .saved-thumb{width:240px;height:72px;}
+.saved-full-grid .saved-item .saved-name{max-width:228px;font-size:.72rem;}
+.saved-full-grid .saved-item .saved-date{font-size:.63rem;}
+.saved-full-grid .saved-item .saved-del{width:20px;height:20px;font-size:.72rem;}
 </style>
 </head>
 <body>
@@ -134,9 +167,10 @@ input[type=color]{width:100%;height:27px;padding:1px;background:#0f172a;border:1
     <svg width="20" height="20" viewBox="0 0 24 24"><path d="M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z"/></svg>
     Diseñador &nbsp;<span>P15</span>&nbsp; 12×40 mm
   </div>
-  <button class="btn-hdr btn-icon" onclick="exportPNG()" title="Exportar PNG">💾 PNG</button>
-  <button class="btn-hdr btn-icon" onclick="exportJSON()" title="Guardar diseño">📄 Guardar</button>
+  <button class="btn-hdr btn-icon" onclick="exportPNG()" title="Exportar PNG">🖼️ PNG</button>
+  <button class="btn-hdr btn-icon" onclick="saveDesignModal()" title="Guardar diseño con nombre">💾 Guardar</button>
   <button class="btn-hdr btn-icon" onclick="document.getElementById('json-input').click()" title="Cargar diseño">📂 Cargar</button>
+  <button class="btn-hdr btn-icon" onclick="showSavedView()" title="Ver mis diseños guardados" style="border-color:var(--accent);color:var(--accent)">📋 Mis diseños</button>
   <div class="hdr-sep"></div>
   <!-- Batería -->
   <div class="batt-wrap" id="batt-wrap" style="display:none" title="Nivel de batería">
@@ -156,6 +190,10 @@ input[type=color]{width:100%;height:27px;padding:1px;background:#0f172a;border:1
   <button class="btn-hdr" style="background:#7f1d1d;color:#fca5a5;border:1px solid #991b1b" onclick="stopServer()" title="Detener el servidor Flask y cerrar la app">⏹ Detener</button>
   <button class="btn-hdr btn-connect" id="btn-connect" onclick="openConnectModal()">🔵 Conectar impresora</button>
 </header>
+
+<!-- WORK AREA -->
+<div class="work-area" id="work-area">
+<div class="canvas-side">
 
 <!-- BARRA CONTEXTUAL -->
 <div class="ctx-bar" id="ctx-bar">
@@ -179,8 +217,9 @@ input[type=color]{width:100%;height:27px;padding:1px;background:#0f172a;border:1
 </div>
 
 <!-- PANEL INFERIOR -->
+<div class="resize-handle" id="resize-handle" title="Arrastra para cambiar el tamaño">&nbsp;</div>
 <div class="bottom-panel" id="bottom-panel">
-  <div class="panel-toggle" onclick="togglePanel()" title="Colapsar/expandir">▼</div>
+  <button class="panel-toggle" onclick="togglePanel()" title="Colapsar/expandir">▼</button>
 
   <div class="tabs-nav">
     <button class="tab-btn active" onclick="switchTab('texto',this)">📝 Texto</button>
@@ -188,7 +227,6 @@ input[type=color]{width:100%;height:27px;padding:1px;background:#0f172a;border:1
     <button class="tab-btn" onclick="switchTab('formas',this)">⬛ Formas</button>
     <button class="tab-btn" onclick="switchTab('codigos',this)">⬜ Códigos</button>
     <button class="tab-btn" onclick="switchTab('fondo',this)">🎨 Fondo</button>
-    <button class="tab-btn" onclick="switchTab('imprimir',this)">🖨️ Imprimir</button>
     <button class="tab-clear" onclick="confirmClear()">🗑 Limpiar</button>
   </div>
 
@@ -252,10 +290,10 @@ input[type=color]{width:100%;height:27px;padding:1px;background:#0f172a;border:1
     </div>
 
     <!-- TAB IMÁGENES -->
-    <div class="tab-pane" id="tab-imagenes">
-      <div class="cg wide" style="min-width:250px">
+    <div class="tab-pane" id="tab-imagenes" style="flex-direction:column;gap:6px;">
+      <div class="cg wide" style="min-width:250px;flex:1;min-height:0;display:flex;flex-direction:column">
         <span class="cl">Imágenes predefinidas (clic para agregar)</span>
-        <div class="img-grid" id="preset-grid"></div>
+        <div class="img-grid" id="preset-grid" style="flex:1"></div>
       </div>
       <div class="vsep"></div>
       <div class="cg">
@@ -378,47 +416,58 @@ input[type=color]{width:100%;height:27px;padding:1px;background:#0f172a;border:1
       </div>
     </div>
 
-    <!-- TAB IMPRIMIR -->
-    <div class="tab-pane" id="tab-imprimir" style="overflow-x:auto;overflow-y:auto;flex-wrap:nowrap;align-items:flex-start;">
-      <div class="cg">
-        <span class="cl">Densidad (oscuridad)</span>
-        <div style="display:flex;align-items:center;gap:7px">
-          <input type="range" id="density" min="1" max="5" value="3" style="width:100px" oninput="document.getElementById('density-val').textContent=this.value"/>
-          <span id="density-val" style="font-weight:700;color:var(--accent)">3</span>
-        </div>
-        <span class="cl" style="margin-top:7px">Copias</span>
-        <input type="number" id="copies" value="1" min="1" max="99" style="width:60px"/>
-      </div>
-      <div class="vsep"></div>
-      <div class="cg" style="padding-top:8px">
-        <button class="btn-print-big" onclick="printLabel()">🖨️ &nbsp;Imprimir etiqueta</button>
-        <button class="bt" style="margin-top:6px" onclick="previewPrint()">👁 &nbsp;Vista previa impresión</button>
-        <button class="bt" style="margin-top:4px" onclick="printLabel(true)">⬛⬜ &nbsp;Imprimir invertida</button>
-      </div>
-      <div class="vsep"></div>
-      <div class="cg" style="min-width:200px">
-        <span class="cl">Info impresora</span>
-        <div id="printer-info" class="pinfo-card" style="margin-top:4px">
-          <div class="pinfo-row"><span class="pinfo-icon">📶</span><span class="pinfo-key">Estado</span><span class="pinfo-val err" id="pi-estado">No conectada</span></div>
-          <div class="pinfo-row"><span class="pinfo-icon">🖨️</span><span class="pinfo-key">Nombre BT</span><span class="pinfo-val" id="pi-nombre">—</span></div>
-          <div class="pinfo-row"><span class="pinfo-icon">🔑</span><span class="pinfo-key">ID / MAC</span><span class="pinfo-val" id="pi-mac" style="font-size:.66rem">—</span></div>
-          <div class="pinfo-row"><span class="pinfo-icon">📡</span><span class="pinfo-key">Señal RSSI</span><span class="pinfo-val" id="pi-rssi">—</span></div>
-          <div class="pinfo-row"><span class="pinfo-icon">🔋</span><span class="pinfo-key">Batería</span>
-            <span class="pinfo-val" id="pi-batt">—</span>
-          </div>
-          <div class="pinfo-row"><span class="pinfo-icon">📐</span><span class="pinfo-key">Resolución</span><span class="pinfo-val">203 DPI · 8 pt/mm</span></div>
-          <div class="pinfo-row"><span class="pinfo-icon">🏷️</span><span class="pinfo-key">Etiqueta</span><span class="pinfo-val" id="pi-label">—</span></div>
-          <div class="pinfo-row"><span class="pinfo-icon">🖥️</span><span class="pinfo-key">Cabezal</span><span class="pinfo-val">384 px (48 mm)</span></div>
-        </div>
-        <button class="bt" style="margin-top:7px" onclick="refreshPrinterStatus()">
-          <svg viewBox="0 0 24 24"><path d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
-          Actualizar estado
-        </button>
-      </div>
-    </div>
+  </div><!-- /tabs-body -->
+</div><!-- /bottom-panel -->
+</div><!-- /canvas-side -->
 
+<!-- PANEL IMPRIMIR (siempre visible) -->
+<div class="print-side" id="print-side">
+  <div class="ps-title">🖨️ Imprimir etiqueta</div>
+  <div class="cg">
+    <span class="cl">Densidad (oscuridad)</span>
+    <div style="display:flex;align-items:center;gap:7px">
+      <input type="range" id="density" min="1" max="5" value="3" style="flex:1" oninput="document.getElementById('density-val').textContent=this.value"/>
+      <span id="density-val" style="font-weight:700;color:var(--accent);min-width:14px">3</span>
+    </div>
+    <span class="cl" style="margin-top:5px">Copias</span>
+    <input type="number" id="copies" value="1" min="1" max="99" style="width:55px"/>
   </div>
-</div>
+  <div class="ps-sep"></div>
+  <button class="btn-print-big" style="width:100%;justify-content:center" onclick="printLabel()">🖨️ &nbsp;Imprimir etiqueta</button>
+  <button class="bt" onclick="previewPrint()">👁 &nbsp;Vista previa</button>
+  <button class="bt" onclick="printLabel(true)">⬛⬜ &nbsp;Imprimir invertida</button>
+  <div class="ps-sep"></div>
+  <span class="cl">Info impresora</span>
+  <div id="printer-info" class="pinfo-card" style="margin-top:3px">
+    <div class="pinfo-row"><span class="pinfo-icon">📶</span><span class="pinfo-key">Estado</span><span class="pinfo-val err" id="pi-estado">No conectada</span></div>
+    <div class="pinfo-row"><span class="pinfo-icon">🖨️</span><span class="pinfo-key">Nombre</span><span class="pinfo-val" id="pi-nombre">—</span></div>
+    <div class="pinfo-row"><span class="pinfo-icon">🔑</span><span class="pinfo-key">ID / MAC</span><span class="pinfo-val" id="pi-mac" style="font-size:.63rem">—</span></div>
+    <div class="pinfo-row"><span class="pinfo-icon">📡</span><span class="pinfo-key">RSSI</span><span class="pinfo-val" id="pi-rssi">—</span></div>
+    <div class="pinfo-row"><span class="pinfo-icon">🔋</span><span class="pinfo-key">Batería</span><span class="pinfo-val" id="pi-batt">—</span></div>
+    <div class="pinfo-row"><span class="pinfo-icon">📐</span><span class="pinfo-key">DPI</span><span class="pinfo-val">203 · 8 pt/mm</span></div>
+    <div class="pinfo-row"><span class="pinfo-icon">🏷️</span><span class="pinfo-key">Etiqueta</span><span class="pinfo-val" id="pi-label">—</span></div>
+  </div>
+  <button class="bt" onclick="refreshPrinterStatus()">
+    <svg viewBox="0 0 24 24"><path d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+    Actualizar estado
+  </button>
+</div><!-- /print-side -->
+
+</div><!-- /work-area -->
+
+<!-- VISTA GUARDADOS (pantalla completa, reemplaza work-area) -->
+<div class="saved-view" id="saved-view">
+  <div class="saved-view-hdr">
+    <h3>📋 Mis diseños guardados &nbsp;<span id="saved-count" style="font-size:.7rem;font-weight:400;color:var(--text2);background:var(--card);padding:1px 8px;border-radius:10px"></span></h3>
+    <div style="display:flex;gap:8px;flex-shrink:0">
+      <button class="bm bp" onclick="saveDesignModal()">💾 Guardar diseño actual</button>
+      <button class="bm bg2" onclick="hideSavedView()">✏️ Volver al diseño</button>
+    </div>
+  </div>
+  <div class="saved-full-grid" id="saved-full-grid">
+    <span style="color:var(--text2);font-size:.85rem">No hay diseños guardados aún. Guarda uno con el botón 💾 Guardar del encabezado.</span>
+  </div>
+</div><!-- /saved-view -->
 
 <!-- MODAL CONECTAR -->
 <div class="modal-overlay" id="modal-connect">
@@ -450,12 +499,27 @@ input[type=color]{width:100%;height:27px;padding:1px;background:#0f172a;border:1
   <div class="modal" style="text-align:center">
     <h2>👁 Vista previa — como imprimirá la P15</h2>
     <p style="font-size:.72rem;color:var(--text2);margin-bottom:10px">Blanco y negro · 203 DPI · 40×12 mm</p>
-    <div style="display:inline-block;border:1px solid var(--border);border-radius:4px;overflow:hidden;background:#fff">
-      <img id="preview-img" style="display:block;image-rendering:pixelated"/>
+    <div style="display:inline-block;border:1px solid var(--border);border-radius:4px;overflow:hidden;background:#fff;max-width:min(640px,90vw)">
+      <img id="preview-img" style="display:block;image-rendering:pixelated;width:min(640px,90vw);height:auto"/>
     </div>
     <div class="mfooter" style="justify-content:center;margin-top:12px">
       <button class="bm bg2" onclick="closeModal('modal-preview')">Cerrar</button>
       <button class="bm bs" onclick="closeModal('modal-preview');printLabel()">🖨️ Imprimir</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL GUARDAR -->
+<div class="modal-overlay" id="modal-save">
+  <div class="modal" style="max-width:380px">
+    <h2>💾 Guardar diseño</h2>
+    <div class="cg" style="margin-top:10px">
+      <span class="cl">Nombre del trabajo</span>
+      <input type="text" id="save-name" placeholder="Ej: Etiqueta precio rojo" style="margin-top:5px;font-size:.85rem" maxlength="60"/>
+    </div>
+    <div class="mfooter">
+      <button class="bm bg2" onclick="closeModal('modal-save')">Cancelar</button>
+      <button class="bm bs" onclick="confirmSaveDesign()">💾 Guardar</button>
     </div>
   </div>
 </div>
@@ -592,12 +656,9 @@ function centerCanvas(){
   ci.style.marginLeft=(cw<sw?Math.max(0,(sw-cw)/2-4):24)+'px';
   ci.style.marginTop =(ch<sh?Math.max(0,(sh-ch)/2-4):24)+'px';
 }
-document.querySelector('.canvas-scroll').addEventListener('wheel',e=>{
-  if(e.ctrlKey||e.metaKey){e.preventDefault();changeZoom(e.deltaY<0?1:-1);}
-},{passive:false});
 new ResizeObserver(centerCanvas).observe(document.querySelector('.canvas-area'));
 
-/* ══ PAN ════════════════════════════════════════════════ */
+/* ══ PAN + RESIZE PANEL + SCROLL-SCALE ═════════════════ */
 function initPan(){
   const sc=document.getElementById('canvas-scroll');
   let pan=false,sx=0,sy=0,ssx=0,ssy=0,space=false;
@@ -608,6 +669,27 @@ function initPan(){
   });
   window.addEventListener('mousemove',e=>{if(pan){sc.scrollLeft=ssx-(e.clientX-sx);sc.scrollTop=ssy-(e.clientY-sy);}});
   window.addEventListener('mouseup',()=>{pan=false;sc.classList.remove('panning');});
+
+  // Scroll sin modificador = escalar objeto seleccionado; con Ctrl = zoom canvas
+  sc.addEventListener('wheel',e=>{
+    if(e.ctrlKey||e.metaKey){e.preventDefault();changeZoom(e.deltaY<0?1:-1);return;}
+    const obj=canvas.getActiveObject();
+    if(obj){
+      e.preventDefault();
+      const factor=e.deltaY<0?1.05:0.952;
+      const sx2=obj.scaleX*factor;
+      const sy2=obj.scaleY*factor;
+      // Límites: no dejar encoger más de 3px ni agrandar más que el doble del canvas
+      if(sx2<0.02||sy2<0.02)return;
+      obj.set({scaleX:sx2,scaleY:sy2});
+      canvas.renderAll();
+      onSel();
+    }
+    // si no hay objeto, scroll normal del contenedor
+  },{passive:false});
+
+  // Resize handle arrastrable
+  initResizeHandle();
 }
 
 /* ══ BARRA CONTEXTUAL ═══════════════════════════════════ */
@@ -843,7 +925,8 @@ async function printLabel(inv=false){
   toast('Enviando a la impresora…');
   try{const r=await fetch('/api/print',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image:u,density,copies,invert:inv})});
   const d=await r.json();
-  if(d.ok)toast('✅ Impresión enviada','ok');else toast('❌ '+d.error,'err');
+  if(d.ok){toast('✅ Impresión enviada','ok');setTimeout(checkPrinterStatus,1500);}
+  else toast('❌ '+d.error,'err');
   }catch(e){toast('❌ '+e.message,'err');}
 }
 
@@ -895,7 +978,7 @@ async function checkPrinterStatus(){
   try{const r=await fetch('/api/status');const d=await r.json();updateStatusUI(d);}catch(e){}
 }
 async function refreshPrinterStatus(){
-  toast('Consultando impresora… (puede tardar ~8 s)');
+  toast('Consultando impresora… (~2 s)');
   try{
     const r=await fetch('/api/status');
     const d=await r.json();
@@ -960,8 +1043,9 @@ function updateStatusUI(d){
   };
   if(conn){
     const stText=d.status||(d.error?'error':'listo');
+    const stShow=stText==='unknown'?'listo':stText;
     const stCls=d.error?'err':stText==='error'?'err':'ok';
-    set('pi-estado','✅ '+stText,'ok');
+    set('pi-estado','✅ '+stShow,'ok');
     set('pi-nombre',d.name||'P15_EEA6_BLE');
     set('pi-mac',d.id||'—');
     if(d.rssi!=null){
@@ -996,11 +1080,146 @@ function switchTab(id,btn){
   document.getElementById('tab-'+id).classList.add('active');
   if(btn)btn.classList.add('active');
 }
-function togglePanel(){const p=document.getElementById('bottom-panel');const t=p.querySelector('.panel-toggle');p.classList.toggle('collapsed');t.textContent=p.classList.contains('collapsed')?'▲':'▼';}
+function initResizeHandle(){
+  const handle=document.getElementById('resize-handle');
+  const canvasArea=document.querySelector('.canvas-area');
+  const panel=document.getElementById('bottom-panel');
+  const canvasSide=document.querySelector('.canvas-side');
+  if(!handle||!canvasArea)return;
+  let dragging=false,startY=0,startH=0;
+  handle.addEventListener('mousedown',e=>{
+    dragging=true;startY=e.clientY;
+    startH=canvasArea.offsetHeight;
+    handle.classList.add('dragging');
+    document.body.style.cursor='ns-resize';
+    document.body.style.userSelect='none';
+  });
+  window.addEventListener('mousemove',e=>{
+    if(!dragging)return;
+    const delta=e.clientY-startY;
+    const newH=Math.max(60,Math.min(canvasSide.offsetHeight-80,startH+delta));
+    canvasArea.style.height=newH+'px';
+    document.documentElement.style.setProperty('--canvas-h',newH+'px');
+    centerCanvas();
+  });
+  window.addEventListener('mouseup',()=>{
+    if(!dragging)return;
+    dragging=false;
+    handle.classList.remove('dragging');
+    document.body.style.cursor='';
+    document.body.style.userSelect='';
+  });
+}
+function togglePanel(){
+  const p=document.getElementById('bottom-panel');
+  const t=p.querySelector('.panel-toggle');
+  const handle=document.getElementById('resize-handle');
+  const collapsed=p.dataset.collapsed==='1';
+  if(collapsed){
+    p.style.minHeight='';p.style.flex='';handle.style.display='';
+    p.dataset.collapsed='0';if(t)t.textContent='▼';
+  }else{
+    p.style.minHeight='32px';p.style.flex='0 0 32px';handle.style.display='none';
+    p.dataset.collapsed='1';if(t)t.textContent='▲';
+  }
+}
+
+function showSavedView(){
+  document.getElementById('work-area').style.display='none';
+  document.getElementById('saved-view').classList.add('active');
+  renderSavedGrid();
+}
+function hideSavedView(){
+  document.getElementById('saved-view').classList.remove('active');
+  document.getElementById('work-area').style.display='';
+}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 document.querySelectorAll('.modal-overlay').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');}));
 let _tt;
 function toast(msg,type=''){const el=document.getElementById('toast');el.textContent=msg;el.className='toast show'+(type?' '+type:'');clearTimeout(_tt);_tt=setTimeout(()=>el.classList.remove('show'),3500);}
+
+/* ══ GUARDADOS (localStorage) ══════════════════════════ */
+const STORAGE_KEY='p15_designs';
+
+function saveDesignModal(){
+  const inp=document.getElementById('save-name');
+  inp.value='';
+  document.getElementById('modal-save').classList.add('open');
+  setTimeout(()=>inp.focus(),120);
+  inp.onkeydown=e=>{if(e.key==='Enter')confirmSaveDesign();};
+}
+
+function confirmSaveDesign(){
+  const name=document.getElementById('save-name').value.trim();
+  if(!name){toast('Escribe un nombre para el diseño','warn');return;}
+  const designs=getSavedDesigns();
+  const idx=designs.findIndex(d=>d.name===name);
+  if(idx>=0){
+    if(!confirm(`Ya existe "${name}". ¿Sobreescribir?`))return;
+    designs.splice(idx,1);
+  }
+  // Miniatura a la mitad de resolución (160×48 px)
+  const oz=currentZoom;
+  canvas.setZoom(0.5);canvas.setWidth(BASE_W*0.5);canvas.setHeight(BASE_H*0.5);canvas.renderAll();
+  const thumb=canvas.toDataURL({format:'png'});
+  canvas.setZoom(oz);canvas.setWidth(BASE_W*oz);canvas.setHeight(BASE_H*oz);canvas.renderAll();
+  designs.unshift({name,json:canvas.toJSON(),thumbnail:thumb,savedAt:new Date().toISOString()});
+  try{
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(designs));
+    closeModal('modal-save');
+    toast(`💾 Guardado: "${name}"`,'ok');
+    if(document.getElementById('saved-view').classList.contains('active'))renderSavedGrid();
+  }catch(e){
+    toast('Error al guardar: '+(e.message||e),'err');
+  }
+}
+
+function getSavedDesigns(){
+  try{return JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]');}catch{return [];}
+}
+
+function renderSavedGrid(){
+  const designs=getSavedDesigns();
+  const grid=document.getElementById('saved-full-grid');
+  const cnt=document.getElementById('saved-count');
+  if(!designs.length){
+    grid.innerHTML='<span style="color:var(--text2);font-size:.85rem">No hay diseños guardados aún. Guarda uno con el botón 💾 Guardar del encabezado.</span>';
+    if(cnt)cnt.textContent='';
+    return;
+  }
+  if(cnt)cnt.textContent=designs.length+' diseño'+(designs.length!==1?'s':'');
+  grid.innerHTML='';
+  designs.forEach(d=>{
+    const item=document.createElement('div');
+    item.className='saved-item';
+    const dt=new Date(d.savedAt).toLocaleDateString('es',{day:'2-digit',month:'2-digit',year:'2-digit'});
+    const safeName=d.name.replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/'/g,'&#39;');
+    item.innerHTML=`
+      <img class="saved-thumb" src="${d.thumbnail}" alt="${safeName}"/>
+      <div class="saved-caption">
+        <span class="saved-name" title="${safeName}">${safeName}</span>
+        <span class="saved-date">${dt}</span>
+      </div>
+      <button class="saved-del" title="Eliminar" onclick="event.stopPropagation();deleteDesign('${safeName}')">&#x2715;</button>
+    `;
+    item.onclick=()=>loadDesign(d.name);
+    grid.appendChild(item);
+  });
+}
+
+function loadDesign(name){
+  const d=getSavedDesigns().find(x=>x.name===name);
+  if(!d){toast('Diseño no encontrado','err');return;}
+  canvas.loadFromJSON(d.json,()=>{canvas.renderAll();toast(`📂 Cargado: "${name}"`,'ok');});
+}
+
+function deleteDesign(name){
+  if(!confirm(`¿Eliminar "${name}"?`))return;
+  const designs=getSavedDesigns().filter(d=>d.name!==name);
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(designs));
+  renderSavedGrid();
+  toast(`🗑 Eliminado: "${name}"`);
+}
 </script>
 </body>
 </html>
