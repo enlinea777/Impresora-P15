@@ -31,7 +31,7 @@ case "$ARCH" in
   aarch64|arm64)
     ARCH="aarch64"
     PBS_ARCH="aarch64-unknown-linux-gnu"
-    BUN_ARCH="arm64"
+    BUN_ARCH="aarch64"
     ;;
   *)
     echo "❌ Arquitectura no soportada: $ARCH" >&2
@@ -42,7 +42,7 @@ esac
 VERSION="${P15_VERSION:-1.0.0}"
 PY_VERSION="${P15_PY_VERSION:-3.12.16}"
 PBS_TAG="${P15_PBS_TAG:-20261110}"
-BUN_VERSION="${P15_BUN_VERSION:-1.3.2}"
+BUN_VERSION="${P15_BUN_VERSION:-1.4.5}"
 
 CACHE="$ROOT/.build-cache"
 BUILD="$ROOT/build"
@@ -122,7 +122,8 @@ else
     --exclude '.git' \
     --exclude '*.log' \
     "$ROOT/thermoprint_ref/" "$STAGE/"
-  ( cd "$STAGE" && "$BUNDLED_BUN" install --production --filter '@thermoprint/cli' )
+  ( cd "$STAGE" && "$BUNDLED_BUN" install --production \
+      --filter '@thermoprint/cli' --frozen-lockfile )
 fi
 
 # Quitar binarios de sharp para musl: el AppImage usa glibc.

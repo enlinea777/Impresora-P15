@@ -20,7 +20,7 @@
     "jsbarcode": "^3.12.3",
     "ora": "^8.0.1",
     "qrcode": "^1.5.4",
-    "sharp": "^0.33.0"
+    "sharp": "^0.35.5"
   },
   "devDependencies": {
     "@types/bun": "latest",

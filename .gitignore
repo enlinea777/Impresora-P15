@@ -28,3 +28,7 @@ uploads/*
 # ── Sistema / editores ─────────────────────────────────────────────────────
 .DS_Store
 *.swp
+
+
+thermoprint_ref/
+
