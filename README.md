@@ -184,8 +184,10 @@ run.sh                     Lanzador de desarrollo
 | `P15_BUN` / `BUN_BIN` | Binario de bun a usar |
 | `P15_SKIP_NODE` | `1` para omitir `bun install` al compilar |
 
-## Créditos
+## Licencia
+
+P15 Designer se distribuye bajo **GPL-2.0** (ver `LICENSE`).
 
 El puente BLE y el pipeline de impresión provienen de
-[thermoprint](https://github.com/tomLadder/thermoprint) (MIT). Ver
-`THERMOPRINT_UPSTREAM.md` para el commit base y los cambios locales.
+[thermoprint](https://github.com/tomLadder/thermoprint) (MIT, compatible con
+GPLv2). Ver `THERMOPRINT_UPSTREAM.md` para el commit base y los cambios locales.
