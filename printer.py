@@ -104,9 +104,13 @@ def _caps_ok(path: str) -> bool:
             ["getcap", str(path)],
             capture_output=True, text=True, timeout=5,
         ).stdout
+        return "cap_net_raw" in out
     except (OSError, subprocess.SubprocessError):
-        return True  # no se puede comprobar → no bloquear
-    return "cap_net_raw" in out
+        # Sin getcap: leer directamente el atributo de capacidades.
+        try:
+            return bool(os.getxattr(str(path), "security.capability"))
+        except OSError:
+            return False
 
 
 def ble_permissions_ok() -> bool:

@@ -10,8 +10,8 @@ export P15_DATA_DIR="${P15_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/p15-de
 export P15_PORT="${P15_PORT:-5000}"
 export P15_ICON="$HERE/usr/share/icons/hicolor/512x512/apps/p15-designer.png"
 
-# bun embebido; si existe una copia local con permisos, printer.py la prefiere.
-export BUN_BIN="${BUN_BIN:-$P15_THERMOPRINT_DIR/bun}"
+# No se exporta BUN_BIN: printer.py busca primero la copia local con permisos
+# (~/.local/share/p15-designer/bin/bun) y si no existe usa el bun embebido.
 
 export PYTHONNOUSERSITE=1
 export PYTHONDONTWRITEBYTECODE=1
